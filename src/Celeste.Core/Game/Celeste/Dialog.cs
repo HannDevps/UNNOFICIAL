@@ -57,7 +57,15 @@ public static class Dialog
 	public static Language LoadLanguage(string filename)
 	{
 		Language language = null;
-		language = ((!File.Exists(filename + ".export")) ? Language.FromTxt(filename) : Language.FromExport(filename + ".export"));
+		if (File.Exists(filename))
+		{
+			language = Language.FromTxt(filename);
+		}
+		else if (File.Exists(filename + ".export"))
+		{
+			language = Language.FromExport(filename + ".export");
+		}
+
 		if (language != null)
 		{
 			Languages[language.Id] = language;

@@ -381,12 +381,18 @@ public class OuiMainMenu : Oui
 		}
 		buttons.Add(mainMenuSmallButton3);
 		vector += Vector2.UnitY * mainMenuSmallButton3.ButtonHeight;
-		MainMenuSmallButton mainMenuSmallButton4 = new MainMenuSmallButton("menu_credits", "menu/credits", this, vector, vector + vector2, OnCredits);
+		MainMenuSmallButton mainMenuSmallButton4 = new MainMenuSmallButton("menu_mods", "menu/remix", this, vector, vector + vector2, OnMods);
 		buttons.Add(mainMenuSmallButton4);
 		vector += Vector2.UnitY * mainMenuSmallButton4.ButtonHeight;
-		MainMenuSmallButton mainMenuSmallButton5 = new MainMenuSmallButton("menu_exit", "menu/exit", this, vector, vector + vector2, OnExit);
+		MainMenuSmallButton mainMenuSmallButton5 = new MainMenuSmallButton("menu_project_contributors", "menu/credits", this, vector, vector + vector2, OnProjectContributors);
 		buttons.Add(mainMenuSmallButton5);
 		vector += Vector2.UnitY * mainMenuSmallButton5.ButtonHeight;
+		MainMenuSmallButton mainMenuSmallButton6 = new MainMenuSmallButton("menu_credits", "menu/credits", this, vector, vector + vector2, OnCredits);
+		buttons.Add(mainMenuSmallButton6);
+		vector += Vector2.UnitY * mainMenuSmallButton6.ButtonHeight;
+		MainMenuSmallButton mainMenuSmallButton7 = new MainMenuSmallButton("menu_exit", "menu/exit", this, vector, vector + vector2, OnExit);
+		buttons.Add(mainMenuSmallButton7);
+		vector += Vector2.UnitY * mainMenuSmallButton7.ButtonHeight;
 		for (int i = 0; i < buttons.Count; i++)
 		{
 			if (i > 0)
@@ -573,6 +579,20 @@ public class OuiMainMenu : Oui
 		Audio.Play("event:/ui/main/button_select");
 		Audio.Play("event:/ui/main/whoosh_large_in");
 		base.Overworld.Goto<OuiOptions>();
+	}
+
+	private void OnMods()
+	{
+		Audio.Play("event:/ui/main/button_select");
+		Audio.Play("event:/ui/main/whoosh_large_in");
+		base.Overworld.Goto<OuiMods>();
+	}
+
+	private void OnProjectContributors()
+	{
+		Audio.Play("event:/ui/main/button_select");
+		Audio.Play("event:/ui/main/whoosh_large_in");
+		base.Overworld.Goto<OuiProjectContributors>();
 	}
 
 	private void OnCredits()
