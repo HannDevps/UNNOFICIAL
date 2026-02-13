@@ -814,7 +814,7 @@ public sealed class AndroidTouchController : IDisposable
                 float dist = delta.Length() / radius;
                 float alpha = Math.Clamp(1f - dist, 0f, 1f);
                 alpha = alpha * alpha;
-                data[y * size + x] = new Color(255, 255, 255, (byte)Math.Clamp((int)MathF.Round(alpha * 255f), 0, 255));
+                data[y * size + x] = new Color((byte)255, (byte)255, (byte)255, (byte)Math.Clamp((int)MathF.Round(alpha * 255f), 0, 255));
             }
         }
 

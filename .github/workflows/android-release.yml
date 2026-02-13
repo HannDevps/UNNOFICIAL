@@ -21,7 +21,7 @@ jobs:
           dotnet-version: 9.0.x
 
       - name: Build Celeste.Core
-        run: dotnet build "src/Celeste.Core/Celeste.Core.csproj" -c Release
+        run: dotnet build "src/Celeste.Core/Celeste.Core.csproj" -c Release -clp:ErrorsOnly
 
   build-android-apk:
     name: Build Android APK
@@ -112,6 +112,7 @@ jobs:
           dotnet publish "src/Celeste.Android/Celeste.Android.csproj" `
             -c Release `
             -f net9.0-android `
+            -clp:ErrorsOnly `
             -p:AndroidPackageFormat=apk `
             -p:ApplicationVersion=$env:APP_VERSION_CODE `
             -p:ApplicationDisplayVersion=$env:APP_VERSION_NAME `
