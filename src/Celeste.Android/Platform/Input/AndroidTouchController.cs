@@ -12,7 +12,7 @@ using Monocle;
 
 namespace Celeste.Android.Platform.Input;
 
-internal sealed class AndroidTouchController : IDisposable
+public sealed class AndroidTouchController : IDisposable
 {
     private const int SourceKeyboardMask = 0x00000101;
     private const int SourceMouseMask = 0x00002002;
@@ -575,7 +575,7 @@ internal sealed class AndroidTouchController : IDisposable
 
     private static bool IsTouchDown(TouchLocationState state)
     {
-        return state == TouchLocationState.Pressed || state == TouchLocationState.Moved || state == TouchLocationState.Stationary;
+        return state != TouchLocationState.Released && state != TouchLocationState.Invalid;
     }
 
     private static bool IsInsideSurface(Vector2 pos, float width, float height)
