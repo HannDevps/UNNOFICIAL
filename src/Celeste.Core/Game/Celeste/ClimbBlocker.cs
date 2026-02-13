@@ -1,0 +1,51 @@
+using Microsoft.Xna.Framework;
+using Monocle;
+
+namespace Celeste;
+
+[Tracked(false)]
+public class ClimbBlocker : Component
+{
+	public bool Blocking = true;
+
+	public bool Edge;
+
+	public ClimbBlocker(bool edge)
+		: base(active: false, visible: false)
+	{
+		Edge = edge;
+	}
+
+	public static bool Check(Scene scene, Entity entity, Vector2 at)
+	{
+		Vector2 position = entity.Position;
+		entity.Position = at;
+		bool result = Check(scene, entity);
+		entity.Position = position;
+		return result;
+	}
+
+	public static bool Check(Scene scene, Entity entity)
+	{
+		foreach (ClimbBlocker component in scene.Tracker.GetComponents<ClimbBlocker>())
+		{
+			if (component.Blocking && entity.CollideCheck(component.Entity))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public static bool EdgeCheck(Scene scene, Entity entity, int dir)
+	{
+		foreach (ClimbBlocker component in scene.Tracker.GetComponents<ClimbBlocker>())
+		{
+			if (component.Blocking && component.Edge && entity.CollideCheck(component.Entity, entity.Position + Vector2.UnitX * dir))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+}

@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{45622B08-66DE-42C6-A22B-161738105864}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Celeste.Core", "src\Celeste.Core\Celeste.Core.csproj", "{698A53BB-AE1B-485C-9D31-AF26223A8155}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Celeste.Android", "src\Celeste.Android\Celeste.Android.csproj", "{882E924E-2C72-4E65-BB4B-AC32E49AA992}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{698A53BB-AE1B-485C-9D31-AF26223A8155}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{698A53BB-AE1B-485C-9D31-AF26223A8155}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{698A53BB-AE1B-485C-9D31-AF26223A8155}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{698A53BB-AE1B-485C-9D31-AF26223A8155}.Release|Any CPU.Build.0 = Release|Any CPU
+		{882E924E-2C72-4E65-BB4B-AC32E49AA992}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{882E924E-2C72-4E65-BB4B-AC32E49AA992}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{882E924E-2C72-4E65-BB4B-AC32E49AA992}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{882E924E-2C72-4E65-BB4B-AC32E49AA992}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{698A53BB-AE1B-485C-9D31-AF26223A8155} = {45622B08-66DE-42C6-A22B-161738105864}
+		{882E924E-2C72-4E65-BB4B-AC32E49AA992} = {45622B08-66DE-42C6-A22B-161738105864}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Celeste</AssemblyName>
+    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net45</TargetFramework>
+    <PlatformTarget>x86</PlatformTarget>
+    <LangVersion>12.0</LangVersion>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <RootNamespace />
+    <NoWarn>$(NoWarn);0649;0169;0219</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Microsoft.Xna.Framework.RuntimeProfile" />
+    <EmbeddedResource Include="Microsoft.Xna.Framework.RuntimeProfile"
+                      LogicalName="Microsoft.Xna.Framework.RuntimeProfile" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Microsoft.Xna.Framework">
+      <HintPath>../refs_dlls/Microsoft.Xna.Framework.dll</HintPath>
+    </Reference>
+
+    <Reference Include="Microsoft.Xna.Framework.Graphics">
+      <HintPath>../refs_dlls/Microsoft.Xna.Framework.Graphics.dll</HintPath>
+    </Reference>
+
+    <Reference Include="Microsoft.Xna.Framework.Game">
+      <HintPath>../refs_dlls/Microsoft.Xna.Framework.Game.dll</HintPath>
+    </Reference></ItemGroup>
+</Project>
