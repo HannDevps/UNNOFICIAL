@@ -94,7 +94,7 @@ public class RuntimeActivity : AndroidGameActivity
         var fileSystem = new AndroidFileSystem(paths, _logger);
         var input = new AndroidInputProvider(_logger);
         IAudioBackend audio = fmodEnabled
-            ? new FmodAudioBackend(_logger)
+            ? new FmodAudioBackend(this, _logger)
             : new NullAudioBackend(_logger);
         try
         {
@@ -144,12 +144,32 @@ public class RuntimeActivity : AndroidGameActivity
 
         _logger?.Log(LogLevel.Info, "LIFECYCLE", "RuntimeActivity OnResume");
         _fullscreen?.Apply(this, "RuntimeActivity-OnResume");
+
+        try
+        {
+            _services?.Audio.OnResume();
+        }
+        catch (Exception exception)
+        {
+            _logger?.Log(LogLevel.Warn, "FMOD", "Audio backend OnResume failed", exception);
+        }
+
         _game?.HandleResume();
     }
 
     protected override void OnPause()
     {
         _logger?.Log(LogLevel.Info, "LIFECYCLE", "RuntimeActivity OnPause");
+
+        try
+        {
+            _services?.Audio.OnPause();
+        }
+        catch (Exception exception)
+        {
+            _logger?.Log(LogLevel.Warn, "FMOD", "Audio backend OnPause failed", exception);
+        }
+
         _game?.HandlePause();
         base.OnPause();
     }
@@ -224,6 +244,19 @@ public class RuntimeActivity : AndroidGameActivity
     protected override void OnDestroy()
     {
         _logger?.Log(LogLevel.Info, "LIFECYCLE", "RuntimeActivity OnDestroy");
+
+        if (_services?.Audio is FmodAudioBackend fmodAudioBackend)
+        {
+            try
+            {
+                fmodAudioBackend.Shutdown();
+            }
+            catch (Exception exception)
+            {
+                _logger?.Log(LogLevel.Warn, "FMOD", "Audio backend shutdown failed", exception);
+            }
+        }
+
         _game?.HandleDestroy();
         _game?.Dispose();
         _game = null;
