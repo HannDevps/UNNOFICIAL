@@ -347,7 +347,7 @@ public static class Audio
 			return new int[1] { 1024 };
 		}
 
-		return new int[3] { 1024, 512, 256 };
+		return new int[4] { 256, 128, 64, 32 };
 	}
 
 	private static void ApplyAndroidDeviceAudioHints(FMOD.System lowLevelSystem)
@@ -362,26 +362,50 @@ public static class Audio
 			return;
 		}
 
+		if (lowLevelSystem.getNumDrivers(out int numDrivers) == RESULT.OK)
+		{
+			CelestePathBridge.LogInfo("FMOD", $"Android FMOD driver count reported: {numDrivers}");
+		}
+
 		if (outputSampleRate > 0)
 		{
-			RESULT result = lowLevelSystem.setSoftwareFormat(outputSampleRate, SPEAKERMODE.DEFAULT, 0);
+			RESULT result = lowLevelSystem.setSoftwareFormat(outputSampleRate, SPEAKERMODE.STEREO, 0);
 			if (result != RESULT.OK)
 			{
 				CelestePathBridge.LogWarn("FMOD", $"Failed to apply Android sample-rate hint ({outputSampleRate}): {result}");
 			}
 		}
 
-		if (outputBlockSize > 0)
+		uint dspBufferLength = 1024u;
+		if (supportsLowLatency && outputBlockSize > 0)
 		{
-			uint bufferLength = (uint)Math.Clamp(outputBlockSize, 64, 4096);
-			RESULT result2 = lowLevelSystem.setDSPBufferSize(bufferLength, 4);
-			if (result2 != RESULT.OK)
-			{
-				CelestePathBridge.LogWarn("FMOD", $"Failed to apply Android DSP buffer hint ({bufferLength}): {result2}");
-			}
+			dspBufferLength = (uint)NormalizeDspBlockSize(outputBlockSize);
 		}
 
-		CelestePathBridge.LogInfo("FMOD", $"Applying Android audio hints before FMOD init: javaReady={javaBridgeReady}; sampleRate={outputSampleRate}; blockSize={outputBlockSize}; lowLatency={supportsLowLatency}; bluetooth={bluetoothOn}");
+		RESULT result2 = lowLevelSystem.setDSPBufferSize(dspBufferLength, 4);
+		if (result2 != RESULT.OK)
+		{
+			CelestePathBridge.LogWarn("FMOD", $"Failed to apply Android DSP buffer hint ({dspBufferLength}): {result2}");
+		}
+
+		CelestePathBridge.LogInfo("FMOD", $"Applying Android audio hints before FMOD init: javaReady={javaBridgeReady}; sampleRate={outputSampleRate}; blockSize={outputBlockSize}; dspBuffer={dspBufferLength}; lowLatency={supportsLowLatency}; bluetooth={bluetoothOn}");
+	}
+
+	private static int NormalizeDspBlockSize(int blockSize)
+	{
+		int clamped = Math.Clamp(blockSize, 64, 4096);
+		int normalized = 64;
+		while (normalized < clamped && normalized < 4096)
+		{
+			normalized <<= 1;
+		}
+
+		if (normalized > 4096)
+		{
+			normalized = 4096;
+		}
+
+		return normalized;
 	}
 
 	public static void Update()
