@@ -1,15 +1,19 @@
 using System;
+using System.Threading;
 using Android.Content;
 using Android.OS;
 using Android.Runtime;
 using Celeste.Core.Platform.Audio;
 using Celeste.Core.Platform.Logging;
+using Java.Lang;
 
 namespace Celeste.Android.Platform.Audio;
 
 public sealed class FmodAudioBackend : IAudioBackend
 {
     private const string FmodClassPath = "org/fmod/FMOD";
+    private const int JavaBridgeInitRetryCount = 3;
+    private const int JavaBridgeRetryDelayMs = 40;
 
     private readonly IAppLogger _logger;
     private readonly Context _context;
@@ -36,7 +40,13 @@ public sealed class FmodAudioBackend : IAudioBackend
         {
             _logger.Log(LogLevel.Info, "FMOD", $"Preparing FMOD backend for ABI={Build.SupportedAbis?[0] ?? "unknown"}");
 
-            _javaBridgeReady = TryInitJavaBridge();
+            var nativeLibrariesReady = EnsureNativeLibrariesLoaded();
+            if (!nativeLibrariesReady)
+            {
+                _logger.Log(LogLevel.Warn, "FMOD", "Native FMOD libraries were not preloaded from Java; continuing with bridge init fallback");
+            }
+
+            _javaBridgeReady = EnsureJavaBridgeReady("startup");
             if (_javaBridgeReady)
             {
                 _logger.Log(LogLevel.Info, "FMOD", "FMOD Java bridge initialized (org.fmod.FMOD.init)");
@@ -64,27 +74,11 @@ public sealed class FmodAudioBackend : IAudioBackend
 
     public void OnResume()
     {
+        _javaBridgeReady = EnsureJavaBridgeReady("resume");
         if (!_javaBridgeReady)
         {
-            _javaBridgeReady = TryInitJavaBridge();
-            if (_javaBridgeReady)
-            {
-                _logger.Log(LogLevel.Info, "FMOD", "FMOD Java bridge re-initialized on resume");
-                CaptureJavaAudioHints();
-            }
-
+            _logger.Log(LogLevel.Warn, "FMOD", "FMOD Java bridge recovery failed on resume");
             return;
-        }
-
-        if (TryCheckJavaInit(out var ready) && !ready)
-        {
-            _logger.Log(LogLevel.Warn, "FMOD", "FMOD Java bridge reported not initialized on resume; trying to recover");
-            _javaBridgeReady = TryInitJavaBridge();
-            if (!_javaBridgeReady)
-            {
-                _logger.Log(LogLevel.Warn, "FMOD", "FMOD Java bridge recovery failed on resume");
-                return;
-            }
         }
 
         CaptureJavaAudioHints();
@@ -147,6 +141,72 @@ public sealed class FmodAudioBackend : IAudioBackend
             {
                 JNIEnv.DeleteLocalRef(classRef);
             }
+        }
+    }
+
+    private bool EnsureNativeLibrariesLoaded()
+    {
+        var lowLevelLoaded = TryLoadNativeLibrary("fmod");
+        var studioLoaded = TryLoadNativeLibrary("fmodstudio");
+        return lowLevelLoaded && studioLoaded;
+    }
+
+    private bool EnsureJavaBridgeReady(string reason)
+    {
+        if (TryCheckJavaInit(out var alreadyReady) && alreadyReady)
+        {
+            return true;
+        }
+
+        for (var attempt = 1; attempt <= JavaBridgeInitRetryCount; attempt++)
+        {
+            var initCallSucceeded = TryInitJavaBridge();
+            if (initCallSucceeded)
+            {
+                if (!TryCheckJavaInit(out var readyAfterInit) || readyAfterInit)
+                {
+                    return true;
+                }
+
+                _logger.Log(LogLevel.Warn, "FMOD", "FMOD Java bridge init returned but checkInit is false", context: $"reason={reason}; attempt={attempt}");
+            }
+            else
+            {
+                _logger.Log(LogLevel.Warn, "FMOD", "FMOD Java bridge init call failed", context: $"reason={reason}; attempt={attempt}");
+            }
+
+            if (attempt < JavaBridgeInitRetryCount)
+            {
+                Thread.Sleep(JavaBridgeRetryDelayMs);
+            }
+        }
+
+        return false;
+    }
+
+    private bool TryLoadNativeLibrary(string libraryName)
+    {
+        try
+        {
+            JavaSystem.LoadLibrary(libraryName);
+            _logger.Log(LogLevel.Info, "FMOD", $"Native FMOD library loaded: {libraryName}");
+            return true;
+        }
+        catch (UnsatisfiedLinkError exception)
+        {
+            if (exception.Message?.IndexOf("already loaded", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                _logger.Log(LogLevel.Info, "FMOD", $"Native FMOD library already loaded: {libraryName}");
+                return true;
+            }
+
+            _logger.Log(LogLevel.Warn, "FMOD", $"Native FMOD library '{libraryName}' could not be loaded", context: exception.ToString());
+            return false;
+        }
+        catch (Exception exception)
+        {
+            _logger.Log(LogLevel.Warn, "FMOD", $"Unexpected error while loading native FMOD library '{libraryName}'", exception);
+            return false;
         }
     }
 
