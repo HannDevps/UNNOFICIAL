@@ -21,8 +21,8 @@ public sealed class AndroidTouchController : IDisposable
     private const int SourceJoystickMask = 0x01000010;
 
     private readonly IAppLogger _logger;
-    private readonly Dictionary<int, Vector2> _menuTouchStart = new();
-    private readonly HashSet<int> _menuSwipeConsumed = new();
+    private readonly Dictionary<int, MenuTouchTrack> _menuTouchTracks = new();
+    private readonly List<int> _menuTouchCleanup = new();
 
     private RuntimeGameConfig _config = RuntimeGameConfig.CreateDefault();
     private DateTime _lastExternalInputCheckUtc;
@@ -61,6 +61,7 @@ public sealed class AndroidTouchController : IDisposable
     private bool _menuPointerPressedThisFrame;
     private Vector2 _menuPointerPosition;
     private int _pendingMenuCancelFrames;
+    private int _menuPointerPulseFrames;
 
     private Vector2 _leftStickCenter;
     private Vector2 _leftStickKnob;
@@ -78,6 +79,39 @@ public sealed class AndroidTouchController : IDisposable
     private Vector2 _leftTriggerCenter;
     private Vector2 _startCenter;
     private Vector2 _backCenter;
+
+    private readonly struct MenuTouchTrack
+    {
+        public readonly Vector2 Start;
+        public readonly Vector2 Last;
+        public readonly bool SwipeConsumed;
+        public readonly long LastUpdateTicks;
+
+        public MenuTouchTrack(Vector2 start, Vector2 last, bool swipeConsumed, long lastUpdateTicks)
+        {
+            Start = start;
+            Last = last;
+            SwipeConsumed = swipeConsumed;
+            LastUpdateTicks = lastUpdateTicks;
+        }
+
+        public MenuTouchTrack WithLast(Vector2 last, long ticks)
+        {
+            return new MenuTouchTrack(Start, last, SwipeConsumed, ticks);
+        }
+
+        public MenuTouchTrack WithSwipeConsumed(bool consumed, Vector2 last, long ticks)
+        {
+            return new MenuTouchTrack(Start, last, consumed, ticks);
+        }
+
+        public MenuTouchTrack WithStart(Vector2 start, Vector2 last, long ticks)
+        {
+            return new MenuTouchTrack(start, last, swipeConsumed: false, ticks);
+        }
+    }
+
+    private static readonly long MenuTouchOrphanTicks = TimeSpan.FromMilliseconds(120).Ticks;
 
     public AndroidTouchController(IAppLogger logger)
     {
@@ -118,8 +152,9 @@ public sealed class AndroidTouchController : IDisposable
             _activeStickTouchId = -1;
             _menuPointerDown = false;
             _menuPointerPressedThisFrame = false;
-            _menuTouchStart.Clear();
-            _menuSwipeConsumed.Clear();
+            _menuPointerPulseFrames = 0;
+            _menuTouchTracks.Clear();
+            _menuTouchCleanup.Clear();
             return BuildKeyboardState(hardwareState);
         }
 
@@ -130,8 +165,9 @@ public sealed class AndroidTouchController : IDisposable
             _activeStickTouchId = -1;
             _menuPointerDown = false;
             _menuPointerPressedThisFrame = false;
-            _menuTouchStart.Clear();
-            _menuSwipeConsumed.Clear();
+            _menuPointerPulseFrames = 0;
+            _menuTouchTracks.Clear();
+            _menuTouchCleanup.Clear();
             return BuildKeyboardState(hardwareState);
         }
 
@@ -157,8 +193,9 @@ public sealed class AndroidTouchController : IDisposable
         {
             _menuPointerDown = false;
             _menuPointerPressedThisFrame = false;
-            _menuTouchStart.Clear();
-            _menuSwipeConsumed.Clear();
+            _menuPointerPulseFrames = 0;
+            _menuTouchTracks.Clear();
+            _menuTouchCleanup.Clear();
         }
 
         return BuildKeyboardState(hardwareState);
@@ -371,7 +408,9 @@ public sealed class AndroidTouchController : IDisposable
     {
         bool anyDown = false;
         bool pointerCaptured = false;
-        float swipeThreshold = MathF.Max(width, height) * 0.06f;
+        float swipeThreshold = MathF.Max(width, height) * 0.055f;
+        long nowTicks = DateTime.UtcNow.Ticks;
+        _menuTouchCleanup.Clear();
 
         for (int i = 0; i < touches.Count; i++)
         {
@@ -380,6 +419,22 @@ public sealed class AndroidTouchController : IDisposable
             if (!IsInsideSurface(pos, width, height))
             {
                 continue;
+            }
+
+            int touchId = touch.Id;
+            if (!_menuTouchTracks.TryGetValue(touchId, out MenuTouchTrack track))
+            {
+                Vector2 start = pos;
+                if (touch.TryGetPreviousLocation(out TouchLocation previousStart) && IsTouchDown(previousStart.State))
+                {
+                    start = previousStart.Position;
+                }
+
+                track = new MenuTouchTrack(start, pos, swipeConsumed: false, nowTicks);
+            }
+            else
+            {
+                track = track.WithLast(pos, nowTicks);
             }
 
             if (IsTouchDown(touch.State))
@@ -394,55 +449,99 @@ public sealed class AndroidTouchController : IDisposable
 
             if (touch.State == TouchLocationState.Pressed)
             {
-                _menuTouchStart[touch.Id] = pos;
-                _menuSwipeConsumed.Remove(touch.Id);
-                _menuPointerPressedThisFrame = true;
+                track = track.WithStart(pos, pos, nowTicks);
+                _menuTouchTracks[touchId] = track;
+                QueueMenuPointerPulse();
                 continue;
             }
 
             if (touch.State == TouchLocationState.Moved)
             {
-                if (_menuTouchStart.TryGetValue(touch.Id, out Vector2 start) && !_menuSwipeConsumed.Contains(touch.Id))
+                if (!track.SwipeConsumed)
                 {
-                    Vector2 delta = pos - start;
+                    Vector2 delta = pos - track.Start;
                     if (MathF.Abs(delta.X) >= swipeThreshold || MathF.Abs(delta.Y) >= swipeThreshold)
                     {
                         EmitSwipe(delta);
-                        _menuSwipeConsumed.Add(touch.Id);
+                        track = track.WithSwipeConsumed(consumed: true, pos, nowTicks);
                     }
                 }
+
+                _menuTouchTracks[touchId] = track;
 
                 continue;
             }
 
             if (touch.State == TouchLocationState.Released)
             {
-                if (_menuTouchStart.TryGetValue(touch.Id, out Vector2 start) && !_menuSwipeConsumed.Contains(touch.Id))
+                if (!pointerCaptured)
                 {
-                    Vector2 delta = pos - start;
-                    if (MathF.Abs(delta.X) >= swipeThreshold || MathF.Abs(delta.Y) >= swipeThreshold)
-                    {
-                        EmitSwipe(delta);
-                    }
-                    else
-                    {
-                        EmitTap(pos, width, height);
-                    }
+                    pointerCaptured = true;
+                    _menuPointerPosition = pos;
                 }
 
-                _menuTouchStart.Remove(touch.Id);
-                _menuSwipeConsumed.Remove(touch.Id);
+                if (!_menuTouchTracks.ContainsKey(touchId)
+                    && touch.TryGetPreviousLocation(out TouchLocation previousRelease)
+                    && IsTouchDown(previousRelease.State))
+                {
+                    track = new MenuTouchTrack(previousRelease.Position, pos, swipeConsumed: false, nowTicks);
+                    QueueMenuPointerPulse();
+                }
+
+                FinalizeMenuTouch(track, pos, swipeThreshold, width, height);
+                _menuTouchTracks.Remove(touchId);
                 continue;
             }
 
             if (touch.State == TouchLocationState.Invalid)
             {
-                _menuTouchStart.Remove(touch.Id);
-                _menuSwipeConsumed.Remove(touch.Id);
+                _menuTouchTracks.Remove(touchId);
+                continue;
+            }
+
+            _menuTouchTracks[touchId] = track;
+        }
+
+        if (_menuTouchTracks.Count > 0)
+        {
+            foreach (KeyValuePair<int, MenuTouchTrack> pair in _menuTouchTracks)
+            {
+                if (nowTicks - pair.Value.LastUpdateTicks <= MenuTouchOrphanTicks)
+                {
+                    continue;
+                }
+
+                FinalizeMenuTouch(pair.Value, pair.Value.Last, swipeThreshold, width, height);
+                _menuTouchCleanup.Add(pair.Key);
+            }
+
+            for (int i = 0; i < _menuTouchCleanup.Count; i++)
+            {
+                _menuTouchTracks.Remove(_menuTouchCleanup[i]);
             }
         }
 
         _menuPointerDown = anyDown;
+    }
+
+    private void FinalizeMenuTouch(MenuTouchTrack track, Vector2 end, float swipeThreshold, float width, float height)
+    {
+        _menuPointerPosition = end;
+
+        if (!track.SwipeConsumed)
+        {
+            Vector2 delta = end - track.Start;
+            if (MathF.Abs(delta.X) >= swipeThreshold || MathF.Abs(delta.Y) >= swipeThreshold)
+            {
+                EmitSwipe(delta);
+            }
+            else
+            {
+                EmitTap(end, width, height);
+            }
+        }
+
+        QueueMenuPointerPulse();
     }
 
     private void EmitSwipe(Vector2 delta)
@@ -464,11 +563,29 @@ public sealed class AndroidTouchController : IDisposable
     {
         if (_pendingMenuCancelFrames <= 0)
         {
+            if (_menuPointerPulseFrames > 0)
+            {
+                _menuPointerPressedThisFrame = true;
+                _menuPointerPulseFrames--;
+            }
+
             return;
         }
 
         _menuPulseCancel = true;
         _pendingMenuCancelFrames--;
+
+        if (_menuPointerPulseFrames > 0)
+        {
+            _menuPointerPressedThisFrame = true;
+            _menuPointerPulseFrames--;
+        }
+    }
+
+    private void QueueMenuPointerPulse(int frames = 2)
+    {
+        _menuPointerPulseFrames = Math.Max(_menuPointerPulseFrames, Math.Max(1, frames));
+        _menuPointerPressedThisFrame = true;
     }
 
     private void EmitTap(Vector2 pos, float width, float height)
