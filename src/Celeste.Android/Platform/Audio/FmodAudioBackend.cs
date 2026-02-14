@@ -238,28 +238,46 @@ public sealed class FmodAudioBackend : IAudioBackend
     private static bool TryClearPendingJavaException(out string detail)
     {
         detail = string.Empty;
-        if (!JNIEnv.ExceptionCheck())
+        IntPtr exceptionRef = IntPtr.Zero;
+        try
         {
-            return false;
+            exceptionRef = JNIEnv.ExceptionOccurred();
+            if (exceptionRef == IntPtr.Zero)
+            {
+                return false;
+            }
+
+            JNIEnv.ExceptionClear();
+            detail = "Java exception";
+
+            using var throwable = Java.Lang.Object.GetObject<Java.Lang.Throwable>(exceptionRef, JniHandleOwnership.TransferLocalRef);
+            detail = throwable?.ToString() ?? detail;
+            exceptionRef = IntPtr.Zero;
+            return true;
         }
-
-        IntPtr exceptionRef = JNIEnv.ExceptionOccurred();
-        JNIEnv.ExceptionClear();
-
-        detail = "Java exception";
-        if (exceptionRef != IntPtr.Zero)
+        catch (Exception exception)
         {
             try
             {
-                using var throwable = Java.Lang.Object.GetObject<Java.Lang.Throwable>(exceptionRef, JniHandleOwnership.TransferLocalRef);
-                detail = throwable?.ToString() ?? detail;
+                JNIEnv.ExceptionClear();
             }
             catch
             {
-                JNIEnv.DeleteLocalRef(exceptionRef);
             }
-        }
 
-        return true;
+            if (exceptionRef != IntPtr.Zero)
+            {
+                try
+                {
+                    JNIEnv.DeleteLocalRef(exceptionRef);
+                }
+                catch
+                {
+                }
+            }
+
+            detail = "Java exception (failed to decode): " + exception.Message;
+            return true;
+        }
     }
 }
