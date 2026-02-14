@@ -234,7 +234,6 @@ public static class Audio
 			studioFlags = FMOD.Studio.INITFLAGS.LIVEUPDATE;
 		}
 
-		CheckFmod(FMOD.Studio.System.create(out system));
 		InitializeSystemWithOutputFallback(studioFlags);
 		attributes3d.forward = new VECTOR
 		{
@@ -255,36 +254,64 @@ public static class Audio
 
 	private static void InitializeSystemWithOutputFallback(FMOD.Studio.INITFLAGS studioFlags)
 	{
-		CheckFmod(system.getLowLevelSystem(out var lowLevelSystem));
 		OUTPUTTYPE[] outputCandidates = GetOutputCandidates();
 		RESULT lastResult = RESULT.OK;
+		system = null;
 		for (int i = 0; i < outputCandidates.Length; i++)
 		{
 			OUTPUTTYPE outputType = outputCandidates[i];
-			if (OperatingSystem.IsAndroid() && outputType != OUTPUTTYPE.AUTODETECT)
+			RESULT createResult = FMOD.Studio.System.create(out var candidateSystem);
+			if (createResult != RESULT.OK)
 			{
-				RESULT result = lowLevelSystem.setOutput(outputType);
-				if (result != RESULT.OK)
+				lastResult = createResult;
+				CelestePathBridge.LogWarn("FMOD", $"Failed to create FMOD studio system for output '{outputType}': {createResult}");
+				continue;
+			}
+
+			try
+			{
+				RESULT getLowLevelResult = candidateSystem.getLowLevelSystem(out var lowLevelSystem);
+				if (getLowLevelResult != RESULT.OK)
 				{
-					lastResult = result;
-					CelestePathBridge.LogWarn("FMOD", $"Failed to set FMOD output mode '{outputType}' on Android: {result}");
+					lastResult = getLowLevelResult;
+					CelestePathBridge.LogWarn("FMOD", $"Failed to get FMOD low-level system for output '{outputType}': {getLowLevelResult}");
 					continue;
 				}
-			}
 
-			RESULT result2 = system.initialize(1024, studioFlags, FMOD.INITFLAGS.NORMAL, IntPtr.Zero);
-			if (result2 == RESULT.OK)
-			{
-				if (lowLevelSystem.getOutput(out var output) == RESULT.OK)
+				if (OperatingSystem.IsAndroid() && outputType != OUTPUTTYPE.AUTODETECT)
 				{
-					CelestePathBridge.LogInfo("FMOD", $"FMOD core output active: {output}");
+					RESULT setOutputResult = lowLevelSystem.setOutput(outputType);
+					if (setOutputResult != RESULT.OK)
+					{
+						lastResult = setOutputResult;
+						CelestePathBridge.LogWarn("FMOD", $"Failed to set FMOD output mode '{outputType}' on Android: {setOutputResult}");
+						continue;
+					}
 				}
 
-				return;
-			}
+				RESULT initializeResult = candidateSystem.initialize(1024, studioFlags, FMOD.INITFLAGS.NORMAL, IntPtr.Zero);
+				if (initializeResult == RESULT.OK)
+				{
+					system = candidateSystem;
+					candidateSystem = null;
+					if (lowLevelSystem.getOutput(out var output) == RESULT.OK)
+					{
+						CelestePathBridge.LogInfo("FMOD", $"FMOD core output active: {output}");
+					}
 
-			lastResult = result2;
-			CelestePathBridge.LogWarn("FMOD", $"FMOD init attempt failed on output '{outputType}': {result2}");
+					return;
+				}
+
+				lastResult = initializeResult;
+				CelestePathBridge.LogWarn("FMOD", $"FMOD init attempt failed on output '{outputType}': {initializeResult}");
+			}
+			finally
+			{
+				if (candidateSystem != null)
+				{
+					candidateSystem.release();
+				}
+			}
 		}
 
 		throw new Exception($"FMOD initialize failed after trying {outputCandidates.Length} output mode(s). Last error: {lastResult}");

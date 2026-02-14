@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -176,20 +175,7 @@ public static class AndroidCrashReporter
                 return;
             }
 
-            if (_logger is null)
-            {
-                return;
-            }
-
-            var logsPath = Path.GetDirectoryName(_logger.CurrentSessionLogFile);
-            if (string.IsNullOrWhiteSpace(logsPath))
-            {
-                return;
-            }
-
-            Directory.CreateDirectory(logsPath);
-            var path = Path.Combine(logsPath, $"crash_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.txt");
-            File.WriteAllText(path, $"Source: {source}{Environment.NewLine}Context: {context}{Environment.NewLine}{exception}");
+            _logger?.Log(LogLevel.Error, "CRASH", $"UNHANDLED_EXCEPTION source={source}", exception, context);
         }
         catch
         {

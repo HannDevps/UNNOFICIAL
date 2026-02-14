@@ -417,7 +417,7 @@ public class GameLoader : Scene
 			}
 			catch (Exception ex2)
 			{
-				CelestePathBridge.LogError("FMOD", "Failed to write error_log.txt after FMOD failure: " + ex2);
+				CelestePathBridge.LogError("FMOD", "Failed to write diagnostic error entry after FMOD failure: " + ex2);
 			}
 		}
 
@@ -485,7 +485,7 @@ public class GameLoader : Scene
 			}
 			catch (Exception ex4)
 			{
-				CelestePathBridge.LogError("LOAD", "Failed to write error_log.txt after load failure: " + ex4);
+				CelestePathBridge.LogError("LOAD", "Failed to write diagnostic error entry after load failure: " + ex4);
 			}
 
 			throw;

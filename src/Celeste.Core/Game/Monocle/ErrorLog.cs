@@ -10,6 +10,8 @@ public static class ErrorLog
 {
 	public const string Filename = "error_log.txt";
 
+	public const string AndroidUnifiedFilename = "tudo_unificado.txt";
+
 	public const string Marker = "==========================================";
 
 	public static void Write(Exception e)
@@ -19,7 +21,13 @@ public static class ErrorLog
 
 	public static void Write(string str)
 	{
-		string text2 = CelestePathBridge.ResolveErrorLogPath("error_log.txt");
+		if (OperatingSystem.IsAndroid())
+		{
+			WriteToAndroidUnifiedLog(str);
+			return;
+		}
+
+		string text2 = CelestePathBridge.ResolveErrorLogPath(Filename);
 		StringBuilder stringBuilder = new StringBuilder();
 		string text = "";
 		if (Path.IsPathRooted(text2))
@@ -69,9 +77,34 @@ public static class ErrorLog
 		streamWriter.Close();
 	}
 
+	private static void WriteToAndroidUnifiedLog(string str)
+	{
+		string text = CelestePathBridge.ResolveErrorLogPath(AndroidUnifiedFilename);
+		if (Path.IsPathRooted(text))
+		{
+			string directoryName = Path.GetDirectoryName(text);
+			if (!Directory.Exists(directoryName))
+			{
+				Directory.CreateDirectory(directoryName);
+			}
+		}
+
+		using StreamWriter streamWriter = new StreamWriter(new FileStream(text, FileMode.Append, FileAccess.Write, FileShare.ReadWrite), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+		string value = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
+		streamWriter.WriteLine(value + " | #ERRLOG | ERROR | ERROR_LOG | BEGIN");
+		using StringReader stringReader = new StringReader(str ?? string.Empty);
+		string line;
+		while ((line = stringReader.ReadLine()) != null)
+		{
+			streamWriter.WriteLine(value + " | #ERRLOG | ERROR | ERROR_LOG | " + line);
+		}
+
+		streamWriter.WriteLine(value + " | #ERRLOG | ERROR | ERROR_LOG | END");
+	}
+
 	public static void Open()
 	{
-		string text = CelestePathBridge.ResolveErrorLogPath("error_log.txt");
+		string text = CelestePathBridge.ResolveErrorLogPath(OperatingSystem.IsAndroid() ? AndroidUnifiedFilename : Filename);
 		if (File.Exists(text))
 		{
 			Process.Start(text);
