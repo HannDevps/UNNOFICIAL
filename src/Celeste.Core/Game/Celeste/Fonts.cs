@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Xml;
+using Celeste.Core.Platform.Interop;
 using Monocle;
 
 namespace Celeste;
@@ -60,11 +62,12 @@ public static class Fonts
 	{
 		XmlReaderSettings xmlReaderSettings = new XmlReaderSettings();
 		xmlReaderSettings.CloseInput = true;
-		string[] files = Directory.GetFiles(Path.Combine(Engine.ContentDirectory, "Dialog"), "*.fnt", SearchOption.AllDirectories);
+		string[] files = CelestePathBridge.EnumerateContentFiles(Path.Combine(Engine.ContentDirectory, "Dialog"), "*.fnt", SearchOption.AllDirectories).ToArray();
 		foreach (string text in files)
 		{
 			string text2 = null;
-			using (XmlReader xmlReader = XmlReader.Create(File.OpenRead(text), xmlReaderSettings))
+			using Stream stream = CelestePathBridge.OpenContentRead(text);
+			using (XmlReader xmlReader = XmlReader.Create(stream, xmlReaderSettings))
 			{
 				while (xmlReader.Read())
 				{

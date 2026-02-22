@@ -8,6 +8,7 @@
     <ApplicationVersion>1</ApplicationVersion>
     <ApplicationDisplayVersion>1.0.0</ApplicationDisplayVersion>
     <RuntimeIdentifiers>android-arm;android-arm64</RuntimeIdentifiers>
+    <AndroidStoreUncompressedFileExtensions>xnb;bin;xml;txt;png;ogg;bank;meta;data;fnt;json;wav;mp3;jpg;jpeg;bmp;gif;obj;mtl;csv;yml;yaml</AndroidStoreUncompressedFileExtensions>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.*" />
@@ -18,6 +19,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <AndroidAsset Include="../../Content/**/*.*"
+                  Condition="Exists('../../Content')"
+                  Link="Content/$([System.String]::Copy('%(RecursiveDir)').Replace('\\','/'))%(Filename)%(Extension)"
+                  LogicalName="Content/$([System.String]::Copy('%(RecursiveDir)').Replace('\\','/'))%(Filename)%(Extension)" />
+
     <AndroidAsset Include="..\..\CONTROLES CELESTE\*.png"
                   Link="controls_custom/%(Filename)%(Extension)" />
     <AndroidAsset Include="..\..\CONTROLES CELESTE\*.dat"

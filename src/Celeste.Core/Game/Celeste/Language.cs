@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
+using Celeste.Core.Platform.Interop;
 using Monocle;
 
 namespace Celeste;
@@ -93,7 +94,7 @@ public class Language
 	public static Language FromExport(string path)
 	{
 		Language language = new Language();
-		using BinaryReader binaryReader = new BinaryReader(File.OpenRead(path));
+		using BinaryReader binaryReader = new BinaryReader(CelestePathBridge.OpenContentRead(path));
 		language.Id = binaryReader.ReadString();
 		language.Label = binaryReader.ReadString();
 		language.IconPath = binaryReader.ReadString();
@@ -122,7 +123,10 @@ public class Language
 		string text = "";
 		StringBuilder stringBuilder = new StringBuilder();
 		string input = "";
-		foreach (string item in File.ReadLines(path, Encoding.UTF8))
+		using Stream stream = CelestePathBridge.OpenContentRead(path);
+		using StreamReader streamReader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, 1024, leaveOpen: false);
+		string item;
+		while ((item = streamReader.ReadLine()) != null)
 		{
 			string text2 = item.Trim();
 			if (text2.Length <= 0 || text2[0] == '#')

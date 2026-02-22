@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Celeste.Core.Platform.Interop;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -78,7 +79,7 @@ public class VirtualTexture : VirtualAsset
 		{
 		case ".data":
 		{
-			using (FileStream fileStream = File.OpenRead(System.IO.Path.Combine(Engine.ContentDirectory, Path)))
+			using (Stream fileStream = CelestePathBridge.OpenContentRead(System.IO.Path.Combine(Engine.ContentDirectory, Path)))
 			{
 				fileStream.Read(bytes, 0, 524288);
 				int num2 = 0;
@@ -155,7 +156,7 @@ public class VirtualTexture : VirtualAsset
 		}
 		case ".png":
 		{
-			using (FileStream stream2 = File.OpenRead(System.IO.Path.Combine(Engine.ContentDirectory, Path)))
+			using (Stream stream2 = CelestePathBridge.OpenContentRead(System.IO.Path.Combine(Engine.ContentDirectory, Path)))
 			{
 				Texture = Texture2D.FromStream(Engine.Graphics.GraphicsDevice, stream2);
 			}
@@ -182,7 +183,7 @@ public class VirtualTexture : VirtualAsset
 		}
 		default:
 		{
-			using (FileStream stream = File.OpenRead(System.IO.Path.Combine(Engine.ContentDirectory, Path)))
+			using (Stream stream = CelestePathBridge.OpenContentRead(System.IO.Path.Combine(Engine.ContentDirectory, Path)))
 			{
 				Texture = Texture2D.FromStream(Engine.Graphics.GraphicsDevice, stream);
 			}

@@ -18,13 +18,13 @@ public sealed class ExternalContentManager : ContentManager
         var relativeAsset = assetName.Replace('\\', '/').TrimStart('/') + ".xnb";
         var expectedPath = Path.Combine(rootDirectory, relativeAsset.Replace('/', Path.DirectorySeparatorChar));
 
-        if (!File.Exists(expectedPath))
+        if (!CelestePathBridge.ContentFileExists(expectedPath))
         {
             CelestePathBridge.LogError("CONTENT", $"Missing asset '{assetName}' expected at '{expectedPath}'");
             throw new ContentLoadException($"Asset '{assetName}' not found at '{expectedPath}'");
         }
 
         CelestePathBridge.LogInfo("CONTENT", $"OpenStream '{assetName}' -> '{expectedPath}'");
-        return File.OpenRead(expectedPath);
+        return CelestePathBridge.OpenContentRead(expectedPath);
     }
 }

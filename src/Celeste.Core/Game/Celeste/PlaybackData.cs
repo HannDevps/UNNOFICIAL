@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using Celeste.Core.Platform.Interop;
 using Microsoft.Xna.Framework;
 using Monocle;
 
@@ -11,11 +13,14 @@ public static class PlaybackData
 
 	public static void Load()
 	{
-		string[] files = Directory.GetFiles(Path.Combine(Engine.ContentDirectory, "Tutorials"));
+		string[] files = CelestePathBridge.EnumerateContentFiles(Path.Combine(Engine.ContentDirectory, "Tutorials"), "*", SearchOption.TopDirectoryOnly).ToArray();
 		foreach (string path in files)
 		{
 			string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(path);
-			List<Player.ChaserState> value = Import(File.ReadAllBytes(path));
+			using Stream stream = CelestePathBridge.OpenContentRead(path);
+			using MemoryStream memoryStream = new MemoryStream();
+			stream.CopyTo(memoryStream);
+			List<Player.ChaserState> value = Import(memoryStream.ToArray());
 			Tutorials[fileNameWithoutExtension] = value;
 		}
 	}

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using Celeste.Core.Platform.Interop;
 using Monocle;
 
 namespace Celeste;
@@ -24,7 +25,7 @@ public static class Dialog
 	{
 		Language = null;
 		Languages = new Dictionary<string, Language>();
-		string[] files = Directory.GetFiles(Path.Combine(Engine.ContentDirectory, "Dialog"), "*.txt", SearchOption.AllDirectories);
+		string[] files = CelestePathBridge.EnumerateContentFiles(Path.Combine(Engine.ContentDirectory, "Dialog"), "*.txt", SearchOption.AllDirectories).ToArray();
 		for (int i = 0; i < files.Length; i++)
 		{
 			LoadLanguage(files[i]);
@@ -57,11 +58,11 @@ public static class Dialog
 	public static Language LoadLanguage(string filename)
 	{
 		Language language = null;
-		if (File.Exists(filename))
+		if (CelestePathBridge.ContentFileExists(filename))
 		{
 			language = Language.FromTxt(filename);
 		}
-		else if (File.Exists(filename + ".export"))
+		else if (CelestePathBridge.ContentFileExists(filename + ".export"))
 		{
 			language = Language.FromExport(filename + ".export");
 		}
@@ -157,11 +158,14 @@ public static class Dialog
 
 	public static void CheckCharacters()
 	{
-		string[] files = Directory.GetFiles(Path.Combine(Engine.ContentDirectory, "Dialog"), "*.txt", SearchOption.AllDirectories);
+		string[] files = CelestePathBridge.EnumerateContentFiles(Path.Combine(Engine.ContentDirectory, "Dialog"), "*.txt", SearchOption.AllDirectories).ToArray();
 		foreach (string text in files)
 		{
 			HashSet<int> hashSet = new HashSet<int>();
-			foreach (string item in File.ReadLines(text, Encoding.UTF8))
+			using Stream stream = CelestePathBridge.OpenContentRead(text);
+			using StreamReader streamReader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, 1024, leaveOpen: false);
+			string item;
+			while ((item = streamReader.ReadLine()) != null)
 			{
 				for (int j = 0; j < item.Length; j++)
 				{

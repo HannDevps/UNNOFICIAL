@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using Celeste.Core.Platform.Interop;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Monocle;
@@ -71,9 +72,9 @@ public class ObjModel : IDisposable
 		List<Vector3> list2 = new List<Vector3>();
 		List<Vector2> list3 = new List<Vector2>();
 		Mesh mesh = null;
-		if (File.Exists(filename + ".export"))
+		if (CelestePathBridge.ContentFileExists(filename + ".export"))
 		{
-			using BinaryReader binaryReader = new BinaryReader(File.OpenRead(filename + ".export"));
+			using BinaryReader binaryReader = new BinaryReader(CelestePathBridge.OpenContentRead(filename + ".export"));
 			int num = binaryReader.ReadInt32();
 			for (int i = 0; i < num; i++)
 			{
@@ -115,7 +116,7 @@ public class ObjModel : IDisposable
 		}
 		else
 		{
-			using StreamReader streamReader = new StreamReader(filename);
+			using StreamReader streamReader = new StreamReader(CelestePathBridge.OpenContentRead(filename));
 			string text;
 			while ((text = streamReader.ReadLine()) != null)
 			{

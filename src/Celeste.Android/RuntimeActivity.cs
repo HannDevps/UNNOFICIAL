@@ -91,7 +91,8 @@ public class RuntimeActivity : AndroidGameActivity
                 _logger.Log(mappedLevel, tag, message);
             });
 
-        var fileSystem = new AndroidFileSystem(paths, _logger);
+        var fileSystem = new AndroidHybridFileSystem(Assets, paths, _logger);
+        CelestePathBridge.ConfigureFileSystem(fileSystem);
         var input = new AndroidInputProvider(_logger);
         IAudioBackend audio = fmodEnabled
             ? new FmodAudioBackend(this, _logger)
@@ -265,6 +266,7 @@ public class RuntimeActivity : AndroidGameActivity
         _touchController?.Dispose();
         _touchController = null;
         CelesteExternalLinkBridge.Clear();
+        CelestePathBridge.ConfigureFileSystem(null);
         _externalLinkLauncher = null;
         MInput.KeyboardStateOverride = null;
         MInput.MouseStateOverride = null;
@@ -291,5 +293,6 @@ public class RuntimeActivity : AndroidGameActivity
         AppContext.SetSwitch(AndroidRuntimePolicy.AggressiveGarbageCollectionSwitch, profile.EnableAggressiveGarbageCollection);
         AppContext.SetSwitch(AndroidRuntimePolicy.PreferReachGraphicsProfileSwitch, profile.PreferReachGraphicsProfile);
         AppContext.SetSwitch(AndroidRuntimePolicy.ForceLegacyBlendStateSwitch, true);
+        AppContext.SetSwitch(AudioRuntimePolicy.EnableFmodOnAndroidSwitch, false);
     }
 }

@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Celeste.Core.Platform.Interop;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Monocle;
@@ -106,7 +107,7 @@ public class MapData
 
 	private void Load()
 	{
-		if (!File.Exists(Filepath))
+		if (!CelestePathBridge.ContentFileExists(Filepath))
 		{
 			return;
 		}

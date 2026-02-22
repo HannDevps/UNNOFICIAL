@@ -14,7 +14,7 @@ public sealed class AndroidPathsProvider : IPathsProvider
             ? context.FilesDir?.AbsolutePath ?? throw new InvalidOperationException("Unable to resolve BaseDataPath")
             : external;
 
-        ContentPath = Path.Combine(BaseDataPath, "Content");
+        ContentPath = "Content";
         LogsPath = Path.Combine(BaseDataPath, "Logs");
         SavePath = Path.Combine(BaseDataPath, "Save");
     }
@@ -32,7 +32,6 @@ public sealed class AndroidPathsProvider : IPathsProvider
         try
         {
             Directory.CreateDirectory(BaseDataPath);
-            Directory.CreateDirectory(ContentPath);
             Directory.CreateDirectory(LogsPath);
             Directory.CreateDirectory(SavePath);
 

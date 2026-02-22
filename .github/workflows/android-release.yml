@@ -84,6 +84,79 @@ jobs:
       - name: Install Android workload
         run: dotnet workload install android
 
+      - name: Download Content package
+        shell: pwsh
+        run: |
+          $tarPath = Join-Path $env:RUNNER_TEMP "Content.tar"
+          Invoke-WebRequest -Uri "https://github.com/HannDevps/UNNOFICIAL/releases/download/V/Content.tar" -OutFile $tarPath
+
+          $extractRoot = Join-Path $env:RUNNER_TEMP "content_extract"
+          if (Test-Path $extractRoot) {
+            Remove-Item $extractRoot -Recurse -Force
+          }
+
+          New-Item -ItemType Directory -Path $extractRoot -Force | Out-Null
+          tar -xf $tarPath -C $extractRoot
+
+          $contentRoot = Join-Path $env:GITHUB_WORKSPACE "Content"
+          if (Test-Path $contentRoot) {
+            Remove-Item $contentRoot -Recurse -Force
+          }
+
+          New-Item -ItemType Directory -Path $contentRoot -Force | Out-Null
+
+          $nestedContent = Join-Path $extractRoot "Content"
+          if (Test-Path $nestedContent) {
+            Copy-Item (Join-Path $nestedContent "*") $contentRoot -Recurse -Force
+          }
+          else {
+            Copy-Item (Join-Path $extractRoot "*") $contentRoot -Recurse -Force
+          }
+
+      - name: Validate Content package
+        shell: pwsh
+        run: |
+          $contentRoot = Join-Path $env:GITHUB_WORKSPACE "Content"
+          if (-not (Test-Path $contentRoot)) {
+            throw "Content folder not found: $contentRoot"
+          }
+
+          $requiredDirs = @("Graphics", "Dialog", "Effects", "Maps")
+          foreach ($dir in $requiredDirs) {
+            $full = Join-Path $contentRoot $dir
+            if (-not (Test-Path $full)) {
+              throw "Missing required content directory: $full"
+            }
+          }
+
+          $requiredFiles = @(
+            "Graphics/SpritesGui.xml",
+            "Graphics/Sprites.xml",
+            "Graphics/Portraits.xml",
+            "Graphics/BackgroundTiles.xml",
+            "Graphics/ForegroundTiles.xml",
+            "Graphics/CompleteScreens.xml",
+            "Graphics/AnimatedTiles.xml",
+            "Graphics/Atlases/Gameplay.meta",
+            "Graphics/Atlases/Gui.meta",
+            "Dialog/English.txt",
+            "Maps/0-Intro.bin"
+          )
+
+          foreach ($relative in $requiredFiles) {
+            $full = Join-Path $contentRoot $relative
+            if (-not (Test-Path $full)) {
+              throw "Missing required content file: $relative"
+            }
+          }
+
+          $fileCount = (Get-ChildItem -Path $contentRoot -Recurse -File | Measure-Object).Count
+          if ($fileCount -lt 900) {
+            throw "Content file count too low: $fileCount (expected >= 900)"
+          }
+
+          Write-Host "Content validation OK. File count: $fileCount"
+
       - name: Restore solution
         run: dotnet restore "Celeste.AndroidPort.sln"
 
@@ -121,6 +194,84 @@ jobs:
             -p:AndroidSigningStorePass="$env:ANDROID_KEYSTORE_PASSWORD" `
             -p:AndroidSigningKeyAlias="$env:ANDROID_KEY_ALIAS" `
             -p:AndroidSigningKeyPass="$env:ANDROID_KEY_PASSWORD"
+
+      - name: Verify Content embedded in APK (stored + identical bytes)
+        shell: pwsh
+        run: |
+          $scriptPath = Join-Path $env:RUNNER_TEMP "verify_apk_content.py"
+          @'
+          import glob
+          import os
+          import pathlib
+          import sys
+          import zipfile
+
+          workspace = pathlib.Path(os.environ["GITHUB_WORKSPACE"])
+          content_root = workspace / "Content"
+          apk_candidates = glob.glob(str(workspace / "src" / "Celeste.Android" / "bin" / "Release" / "net9.0-android" / "**" / "*.apk"), recursive=True)
+
+          if not apk_candidates:
+              raise SystemExit("No APK generated to verify content embedding")
+
+          apk_path = pathlib.Path(apk_candidates[0])
+          required = [
+              "Graphics/SpritesGui.xml",
+              "Graphics/Sprites.xml",
+              "Graphics/Portraits.xml",
+              "Graphics/BackgroundTiles.xml",
+              "Graphics/ForegroundTiles.xml",
+              "Graphics/CompleteScreens.xml",
+              "Graphics/AnimatedTiles.xml",
+              "Graphics/Atlases/Gameplay.meta",
+              "Graphics/Atlases/Gui.meta",
+              "Dialog/English.txt",
+              "Maps/0-Intro.bin",
+          ]
+
+          with zipfile.ZipFile(apk_path, "r") as archive:
+              infos = archive.infolist()
+              content_infos = [info for info in infos if info.filename.startswith("assets/Content/")]
+
+              if len(content_infos) < 900:
+                  raise SystemExit(f"APK content entry count too low: {len(content_infos)} (expected >= 900)")
+
+              compressed = [info.filename for info in content_infos if info.compress_type != zipfile.ZIP_STORED]
+              if compressed:
+                  sample = "\n".join(compressed[:20])
+                  raise SystemExit(f"Found compressed Content assets in APK (expected stored/no-compress). Sample:\n{sample}")
+
+              for info in content_infos:
+                  rel = info.filename[len("assets/Content/"):]
+                  if not rel or rel.endswith("/"):
+                      continue
+
+                  source_file = content_root / rel
+                  if not source_file.is_file():
+                      raise SystemExit(f"APK asset has no matching source file: {info.filename}")
+
+                  if archive.read(info.filename) != source_file.read_bytes():
+                      raise SystemExit(f"Asset bytes differ from source file: {info.filename}")
+
+              for rel in required:
+                  source_file = content_root / rel
+                  if not source_file.is_file():
+                      raise SystemExit(f"Required source content file missing: {source_file}")
+
+                  entry_name = "assets/Content/" + rel.replace("\\", "/")
+                  try:
+                      data_apk = archive.read(entry_name)
+                  except KeyError as exc:
+                      raise SystemExit(f"Missing required asset in APK: {entry_name}") from exc
+
+                  data_src = source_file.read_bytes()
+                  if data_apk != data_src:
+                      raise SystemExit(f"Asset bytes differ from source file: {entry_name}")
+
+          print(f"APK content verification passed: {apk_path}")
+          print(f"Checked required files: {len(required)} | Content entries: {len(content_infos)}")
+          '@ | Set-Content -Path $scriptPath -Encoding utf8
+
+          python $scriptPath
 
       - name: Collect artifacts
         shell: pwsh

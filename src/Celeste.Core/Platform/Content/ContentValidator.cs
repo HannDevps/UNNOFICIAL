@@ -152,7 +152,7 @@ public sealed class ContentValidator
             try
             {
                 using var stream = _fileSystem.OpenRead(file);
-                if (stream.CanRead && stream.Length > 0)
+                if (stream.CanRead)
                 {
                     _ = stream.ReadByte();
                 }

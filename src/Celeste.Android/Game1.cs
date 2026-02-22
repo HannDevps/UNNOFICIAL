@@ -268,6 +268,7 @@ public class Game1 : Game, IAndroidGameLifecycle
 
                         _services.Logger.Log(mappedLevel, tag, message);
                     });
+                CelestePathBridge.ConfigureFileSystem(_services.FileSystem);
                 _services.Logger.Log(LogLevel.Info, "PATHS", $"BaseDataPath={_services.Paths.BaseDataPath}");
                 _services.Logger.Log(LogLevel.Info, "PATHS", $"ContentPath={_services.Paths.ContentPath}");
                 _services.Logger.Log(LogLevel.Info, "PATHS", $"LogsPath={_services.Paths.LogsPath}");

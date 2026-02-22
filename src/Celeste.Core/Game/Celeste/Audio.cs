@@ -32,23 +32,36 @@ public static class Audio
 		public static Bank Load(string name, bool loadStrings)
 		{
 			string text = ResolveBankPath(name);
-			if (!File.Exists(text + ".bank"))
+			if (!CelestePathBridge.ContentFileExists(text + ".bank"))
 			{
 				throw new FileNotFoundException("FMOD bank not found", text + ".bank");
 			}
 
-			CheckFmod(system.loadBankFile(text + ".bank", LOAD_BANK_FLAGS.NORMAL, out var bank));
+			CheckFmod(LoadBank(text + ".bank", out var bank));
 			bank.loadSampleData();
 			if (loadStrings)
 			{
-				if (!File.Exists(text + ".strings.bank"))
+				if (!CelestePathBridge.ContentFileExists(text + ".strings.bank"))
 				{
 					throw new FileNotFoundException("FMOD strings bank not found", text + ".strings.bank");
 				}
 
-				CheckFmod(system.loadBankFile(text + ".strings.bank", LOAD_BANK_FLAGS.NORMAL, out var _));
+				CheckFmod(LoadBank(text + ".strings.bank", out var _));
 			}
 			return bank;
+		}
+
+		private static RESULT LoadBank(string path, out Bank bank)
+		{
+			if (File.Exists(path))
+			{
+				return system.loadBankFile(path, LOAD_BANK_FLAGS.NORMAL, out bank);
+			}
+
+			using Stream stream = CelestePathBridge.OpenContentRead(path);
+			using MemoryStream memory = new MemoryStream();
+			stream.CopyTo(memory);
+			return system.loadBankMemory(memory.ToArray(), LOAD_BANK_FLAGS.NORMAL, out bank);
 		}
 
 		private static string ResolveBankPath(string name)
@@ -74,7 +87,7 @@ public static class Audio
 					? Path.Combine(Engine.ContentDirectory, "FMOD", name)
 					: Path.Combine(Engine.ContentDirectory, "FMOD", folder, name);
 
-				if (!File.Exists(candidatePath + ".bank"))
+				if (!CelestePathBridge.ContentFileExists(candidatePath + ".bank"))
 				{
 					continue;
 				}
