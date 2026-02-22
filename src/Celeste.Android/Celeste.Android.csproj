@@ -8,7 +8,7 @@
     <ApplicationVersion>1</ApplicationVersion>
     <ApplicationDisplayVersion>1.0.0</ApplicationDisplayVersion>
     <RuntimeIdentifiers>android-arm;android-arm64</RuntimeIdentifiers>
-    <AndroidStoreUncompressedFileExtensions>xnb;bin;xml;txt;png;ogg;bank;meta;data;fnt;json;wav;mp3;jpg;jpeg;bmp;gif;obj;mtl;csv;yml;yaml</AndroidStoreUncompressedFileExtensions>
+    <AndroidStoreUncompressedFileExtensions>xnb;bin;xml;txt;png;ogg;bank;meta;data;fnt;json;wav;mp3;jpg;jpeg;bmp;gif;obj;mtl;csv;yml;yaml;export;spritefont</AndroidStoreUncompressedFileExtensions>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.*" />

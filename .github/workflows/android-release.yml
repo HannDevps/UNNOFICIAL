@@ -157,6 +157,23 @@ jobs:
 
           Write-Host "Content validation OK. File count: $fileCount"
 
+      - name: Compute no-compress extensions from Content
+        shell: pwsh
+        run: |
+          $contentRoot = Join-Path $env:GITHUB_WORKSPACE "Content"
+          $extensions = Get-ChildItem -Path $contentRoot -Recurse -File |
+            ForEach-Object { $_.Extension.TrimStart('.').ToLowerInvariant() } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+            Sort-Object -Unique
+
+          if (-not $extensions -or $extensions.Count -eq 0) {
+            throw "Unable to compute Content extensions for no-compress packaging"
+          }
+
+          $joined = ($extensions -join ';')
+          "CONTENT_NO_COMPRESS_EXTENSIONS=$joined" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "Computed no-compress extensions: $joined"
+
       - name: Restore solution
         run: dotnet restore "Celeste.AndroidPort.sln"
 
@@ -189,6 +206,7 @@ jobs:
             -p:AndroidPackageFormat=apk `
             -p:ApplicationVersion=$env:APP_VERSION_CODE `
             -p:ApplicationDisplayVersion=$env:APP_VERSION_NAME `
+            -p:AndroidStoreUncompressedFileExtensions="$env:CONTENT_NO_COMPRESS_EXTENSIONS" `
             -p:AndroidKeyStore=true `
             -p:AndroidSigningKeyStore="$env:ANDROID_KEYSTORE_PATH" `
             -p:AndroidSigningStorePass="$env:ANDROID_KEYSTORE_PASSWORD" `
